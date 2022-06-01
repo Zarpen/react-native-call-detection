@@ -37,14 +37,13 @@ public class CallDetectionManagerModule
     private CallStateUpdateActionModule jsModule = null;
     private CallDetectionPhoneStateListener callDetectionPhoneStateListener;
     private Activity activity = null;
-    private boolean callStateListenerRegistered = false;
     private static final String CALLED_PHONE_NUMBER_KEY = "com.pritesh.calldetection.call.number";
 
-    private TelephonyCallback.CallStateListener callStateListener = null;
+    private CallDetectionCallStateListener callStateListener = null;
 
     {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            callStateListener = new TelephonyCallback.CallStateListener() {
+            callStateListener = new CallDetectionCallStateListener() {
                 @Override
                 public void onCallStateChanged(int state) {
                     String phoneNumber = "";
@@ -85,7 +84,7 @@ public class CallDetectionManagerModule
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this.reactContext, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-                telephonyManager.registerTelephonyCallback(this.reactContext.getMainExecutor(), (TelephonyCallback) callStateListener);
+                telephonyManager.registerTelephonyCallback(this.reactContext.getMainExecutor(), callStateListener);
             }
         } else {
             callDetectionPhoneStateListener = new CallDetectionPhoneStateListener(this);
@@ -97,7 +96,7 @@ public class CallDetectionManagerModule
     @ReactMethod
     public void stopListener() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            telephonyManager.unregisterTelephonyCallback((TelephonyCallback) callStateListener);
+            telephonyManager.unregisterTelephonyCallback(callStateListener);
         }else{
             telephonyManager.listen(callDetectionPhoneStateListener,
                 PhoneStateListener.LISTEN_NONE);
