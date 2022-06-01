@@ -3,8 +3,10 @@ package com.pritesh.calldetection;
 import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
@@ -14,6 +16,14 @@ import com.facebook.react.bridge.ReactMethod;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import android.preference.PreferenceManager;
+import android.content.SharedPreferences;
+import java.lang.Exception;
+import android.content.pm.PackageManager;
+import android.Manifest;
+
+import androidx.core.content.ContextCompat;
 
 public class CallDetectionManagerModule
         extends ReactContextBaseJavaModule
@@ -27,6 +37,31 @@ public class CallDetectionManagerModule
     private CallStateUpdateActionModule jsModule = null;
     private CallDetectionPhoneStateListener callDetectionPhoneStateListener;
     private Activity activity = null;
+    private boolean callStateListenerRegistered = false;
+    private static final String CALLED_PHONE_NUMBER_KEY = "com.pritesh.calldetection.call.number";
+
+    private TelephonyCallback.CallStateListener callStateListener = null;
+
+    {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            callStateListener = new TelephonyCallback.CallStateListener() {
+                @Override
+                public void onCallStateChanged(int state) {
+                    String phoneNumber = "";
+
+                    try {
+                        phoneNumber = PreferenceManager
+                                .getDefaultSharedPreferences(activity)
+                                .getString(CALLED_PHONE_NUMBER_KEY, "");
+                    } catch (Exception e) {
+                        Log.e("[CallDetectionModule]", "Cannot recover call phone number", e);
+                    }
+
+                    phoneCallStateUpdated(state, phoneNumber);
+                }
+            };
+        }
+    }
 
     public CallDetectionManagerModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -47,16 +82,27 @@ public class CallDetectionManagerModule
 
         telephonyManager = (TelephonyManager) this.reactContext.getSystemService(
                 Context.TELEPHONY_SERVICE);
-        callDetectionPhoneStateListener = new CallDetectionPhoneStateListener(this);
-        telephonyManager.listen(callDetectionPhoneStateListener,
-                PhoneStateListener.LISTEN_CALL_STATE);
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this.reactContext, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                telephonyManager.registerTelephonyCallback(this.reactContext.getMainExecutor(), (TelephonyCallback) callStateListener);
+            }
+        } else {
+            callDetectionPhoneStateListener = new CallDetectionPhoneStateListener(this);
+            telephonyManager.listen(callDetectionPhoneStateListener,
+                PhoneStateListener.LISTEN_CALL_STATE);
+        }
     }
 
     @ReactMethod
     public void stopListener() {
-        telephonyManager.listen(callDetectionPhoneStateListener,
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            telephonyManager.unregisterTelephonyCallback((TelephonyCallback) callStateListener);
+        }else{
+            telephonyManager.listen(callDetectionPhoneStateListener,
                 PhoneStateListener.LISTEN_NONE);
+        }
+
         telephonyManager = null;
         callDetectionPhoneStateListener = null;
     }
