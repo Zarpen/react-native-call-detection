@@ -9,6 +9,8 @@ def safeExtGet(prop, fallback) {
 }
 
 android {
+    namespace = "com.pritesh.calldetection"
+    
     compileSdkVersion safeExtGet('compileSdkVersion', DEFAULT_COMPILE_SDK_VERSION)
     buildToolsVersion safeExtGet('buildToolsVersion', DEFAULT_BUILD_TOOLS_VERSION)
 
